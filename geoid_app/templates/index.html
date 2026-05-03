@@ -45,29 +45,8 @@
         <h2 class="panel-title">
           <span class="panel-icon">⊕</span> Región de Estudio
         </h2>
-
-        <div class="field-group">
-          <label>Latitud mínima (°)</label>
-          <input type="number" id="lat-min" value="-5" step="0.5" min="-90" max="90" />
-        </div>
-        <div class="field-group">
-          <label>Latitud máxima (°)</label>
-          <input type="number" id="lat-max" value="15" step="0.5" min="-90" max="90" />
-        </div>
-        <div class="field-group">
-          <label>Longitud mínima (°)</label>
-          <input type="number" id="lon-min" value="-80" step="0.5" min="-180" max="180" />
-        </div>
-        <div class="field-group">
-          <label>Longitud máxima (°)</label>
-          <input type="number" id="lon-max" value="-65" step="0.5" min="-180" max="180" />
-        </div>
-
-        <div class="preset-row">
-          <span class="preset-label">Presets:</span>
-          <button class="btn-preset" onclick="setPreset('colombia')">Colombia</button>
-          <button class="btn-preset" onclick="setPreset('cundinamarca')">Cundinamarca</button>
-          <button class="btn-preset" onclick="setPreset('antioquia')">Antioquia</button>
+        <div class="info-box" style="margin-top: 10px; font-size: 0.9em; color: var(--text-muted);">
+          <p>La región (Lat/Lon) se autoajustará a los límites máximos y mínimos encontrados en tu archivo de Correcciones.</p>
         </div>
       </section>
 
@@ -78,8 +57,8 @@
 
         <div class="field-group">
           <label>Resolución Δφ = Δλ (°)</label>
-          <input type="number" id="resolucion" value="0.5" step="0.05" min="0.05" max="5.0" />
-          <span class="field-hint">Menor = más preciso, más lento</span>
+          <input type="number" id="resolucion" value="0.05" readonly style="cursor: not-allowed; opacity: 0.8;" />
+          <span class="field-hint">Fijo en 0.05° para máxima precisión</span>
         </div>
 
         <div class="field-group">
@@ -92,6 +71,18 @@
           </div>
           <input type="hidden" id="L-max" value="170" />
           <span class="field-hint">EGM96 tiene L hasta 360</span>
+        </div>
+
+        <div class="field-group">
+          <label>Coeficientes EGM96 (.gfc)</label>
+          <input type="file" id="file-gfc" accept=".gfc" />
+          <span class="field-hint">Requerido para EGMUD</span>
+        </div>
+
+        <div class="field-group">
+          <label>Correcciones (.csv / .txt)</label>
+          <input type="file" id="file-corr" accept=".csv,.txt" />
+          <span class="field-hint">Lon, Lat, H, Corr. Aire Libre</span>
         </div>
 
         <div class="grid-preview" id="grid-preview">
@@ -168,14 +159,16 @@
           <div class="map-badges">
             <span class="badge badge-blue">L = <span id="badge-L">170</span></span>
             <span class="badge badge-green" id="badge-egmud-pts">—</span>
+            <button class="btn-fullscreen" onclick="fullscreenMap('container-egmud')" title="Pantalla completa">⛶</button>
           </div>
         </div>
         <div class="map-container" id="container-egmud">
           <div class="map-placeholder">
             <div class="placeholder-icon">⊕</div>
-            <p>Configure la región y haga clic en <strong>Calcular EGMUD</strong></p>
+            <p>Cargue sus archivos y haga clic en <strong>Calcular EGMUD</strong></p>
           </div>
         </div>
+        <div class="map-hint">🔍 Clic sobre el mapa = valor en metros | ⛶ = pantalla completa</div>
         <div class="stats-bar" id="stats-egmud" style="display:none">
           <div class="stat-item"><span class="stat-label">Mín</span><span class="stat-value" id="egmud-min">—</span></div>
           <div class="stat-item"><span class="stat-label">Máx</span><span class="stat-value" id="egmud-max">—</span></div>
@@ -190,6 +183,7 @@
           <h3>② Comparación: EGM96_ref − EGMUD</h3>
           <div class="map-badges">
             <span class="badge badge-orange">Error residual</span>
+            <button class="btn-fullscreen" onclick="fullscreenMap('container-compare')" title="Pantalla completa">⛶</button>
           </div>
         </div>
         <div class="map-container" id="container-compare">
@@ -198,6 +192,7 @@
             <p>Ejecutar primero el cálculo EGMUD</p>
           </div>
         </div>
+        <div class="map-hint">🔍 Clic sobre el mapa = valor en metros | ⛶ = pantalla completa</div>
         <div class="stats-bar" id="stats-compare" style="display:none">
           <div class="stat-item"><span class="stat-label">Error medio</span><span class="stat-value" id="cmp-mean">—</span></div>
           <div class="stat-item"><span class="stat-label">RMSE</span><span class="stat-value" id="cmp-rmse">—</span></div>
@@ -213,6 +208,7 @@
           <h3>③ Modelo Geoidal Híbrido</h3>
           <div class="map-badges">
             <span class="badge badge-purple">EGMUD + ΔN_FA + ΔN_H</span>
+            <button class="btn-fullscreen" onclick="fullscreenMap('container-hybrid')" title="Pantalla completa">⛶</button>
           </div>
         </div>
         <div class="map-container" id="container-hybrid">
@@ -221,6 +217,7 @@
             <p>Ejecutar primero el cálculo EGMUD</p>
           </div>
         </div>
+        <div class="map-hint">🔍 Clic sobre el mapa = valor en metros | ⛶ = pantalla completa</div>
         <div class="stats-bar" id="stats-hybrid" style="display:none">
           <div class="stat-item"><span class="stat-label">Mín</span><span class="stat-value" id="hyb-min">—</span></div>
           <div class="stat-item"><span class="stat-label">Máx</span><span class="stat-value" id="hyb-max">—</span></div>
@@ -256,6 +253,14 @@
     <p>Modelo Geoidal EGM96 · Geodesia Física · Universidad Distrital Francisco José de Caldas · Prof. Andrés Cárdenas Contreras</p>
     <p class="footer-note">Los coeficientes EGM96 son propiedad de NGA/NASA. Los resultados son de carácter académico.</p>
   </footer>
+
+  <!-- Image Modal Overlay -->
+  <div class="image-modal" id="image-modal" onclick="closeModal()">
+    <img id="modal-img" src="" alt="Mapa ampliado" />
+  </div>
+
+  <!-- Pixel Value Tooltip -->
+  <div id="pixel-tooltip" style="display:none; position:fixed; padding:6px 12px; background:rgba(0,0,0,0.85); color:#00e5ff; font-family:'Space Mono',monospace; font-size:12px; border-radius:6px; border:1px solid rgba(0,229,255,0.4); pointer-events:none; z-index:10000; box-shadow: 0 0 10px rgba(0,229,255,0.3);"></div>
 
   <script src="/static/js/script.js"></script>
 </body>

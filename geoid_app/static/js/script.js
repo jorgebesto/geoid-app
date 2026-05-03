@@ -12,59 +12,76 @@ const State = {
   egmudCalculado: false,
   comparacionCalculada: false,
   hibridoCalculado: false,
+  // Store grid data per map container for pixel value lookup
+  gridData: {},  // { containerId: { bounds, data, n_lat, n_lon } }
 };
 
 // ─────────────────────────────────────────────────────────────────
-// Presets geográficos
+// Extraer bounds automáticamente del archivo de correcciones
 // ─────────────────────────────────────────────────────────────────
-const PRESETS = {
-  colombia:      { lat_min: -5,   lat_max: 15,  lon_min: -80, lon_max: -65 },
-  cundinamarca:  { lat_min:  3.5, lat_max:  5.5, lon_min: -74.5, lon_max: -73.0 },
-  antioquia:     { lat_min:  5.5, lat_max:  8.5, lon_min: -77.0, lon_max: -74.0 },
-};
-
-function setPreset(name) {
-  const p = PRESETS[name];
-  if (!p) return;
-  document.getElementById('lat-min').value = p.lat_min;
-  document.getElementById('lat-max').value = p.lat_max;
-  document.getElementById('lon-min').value = p.lon_min;
-  document.getElementById('lon-max').value = p.lon_max;
-  updateGridPreview();
-  addLog(`Preset seleccionado: ${name}`, 'info');
+async function extractBoundsFromCorrections() {
+  return new Promise((resolve, reject) => {
+    const fileCorr = document.getElementById('file-corr').files[0];
+    if (!fileCorr) {
+      reject('Se requiere el archivo de correcciones (.csv/.txt) para auto-ajustar la región.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target.result;
+      const lines = text.trim().split('\n');
+      if (lines.length < 2) {
+        reject('El archivo de correcciones está vacío o no tiene datos.');
+        return;
+      }
+      let lat_min = 90, lat_max = -90, lon_min = 180, lon_max = -180;
+      let validCount = 0;
+      
+      for (let i = 1; i < lines.length; i++) {
+        let line = lines[i].trim();
+        if (!line) continue;
+        
+        let parts;
+        if (line.includes(';')) parts = line.split(';');
+        else if (line.includes('\t')) parts = line.split('\t');
+        else if ((line.match(/,/g) || []).length >= 3) parts = line.split(',');
+        else parts = line.split(/\s+/);
+        
+        if (parts.length >= 2) {
+          let lon = parseFloat(parts[0].trim().replace(',', '.'));
+          let lat = parseFloat(parts[1].trim().replace(',', '.'));
+          
+          if (!isNaN(lon) && !isNaN(lat)) {
+            if (lon < lon_min) lon_min = lon;
+            if (lon > lon_max) lon_max = lon;
+            if (lat < lat_min) lat_min = lat;
+            if (lat > lat_max) lat_max = lat;
+            validCount++;
+          }
+        }
+      }
+      if (validCount === 0) {
+        reject('No se encontraron coordenadas válidas en el archivo de correcciones.');
+      } else {
+        // Expandir un margen de 0.05 grados para asegurar que los bordes cubran bien los puntos
+        resolve({
+          lat_min: Math.floor((lat_min - 0.05) * 100) / 100,
+          lat_max: Math.ceil((lat_max + 0.05) * 100) / 100,
+          lon_min: Math.floor((lon_min - 0.05) * 100) / 100,
+          lon_max: Math.ceil((lon_max + 0.05) * 100) / 100
+        });
+      }
+    };
+    reader.onerror = () => reject('Error al leer el archivo de correcciones.');
+    reader.readAsText(fileCorr);
+  });
 }
 
-// ─────────────────────────────────────────────────────────────────
-// Actualizar vista previa de la malla
-// ─────────────────────────────────────────────────────────────────
 function updateGridPreview() {
-  const latMin = parseFloat(document.getElementById('lat-min').value);
-  const latMax = parseFloat(document.getElementById('lat-max').value);
-  const lonMin = parseFloat(document.getElementById('lon-min').value);
-  const lonMax = parseFloat(document.getElementById('lon-max').value);
-  const res    = parseFloat(document.getElementById('resolucion').value);
-
-  if (isNaN(latMin) || isNaN(latMax) || isNaN(lonMin) || isNaN(lonMax) || isNaN(res) || res <= 0) {
-    document.getElementById('preview-text').textContent = 'Malla: — × — puntos';
-    return;
-  }
-
-  const nLat = Math.round((latMax - latMin) / res) + 1;
-  const nLon = Math.round((lonMax - lonMin) / res) + 1;
-  const total = nLat * nLon;
-  let warning = '';
-  if (total > 50000) warning = '  ⚠ Puede ser lento';
-  if (total > 200000) warning = '  ⛔ Muy grande, aumente resolución';
-
-  document.getElementById('preview-text').textContent =
-    `Malla: ${nLat} × ${nLon} = ${total.toLocaleString()} puntos${warning}`;
   document.getElementById('badge-L').textContent = document.getElementById('L-max').value;
 }
 
-// Escuchar cambios en los inputs
-['lat-min','lat-max','lon-min','lon-max','resolucion'].forEach(id => {
-  document.getElementById(id).addEventListener('input', updateGridPreview);
-});
+document.getElementById('resolucion').addEventListener('input', updateGridPreview);
 
 // ─────────────────────────────────────────────────────────────────
 // Utilidades de log
@@ -115,24 +132,11 @@ function hideProgress() {
 }
 
 // ─────────────────────────────────────────────────────────────────
-// Helper: obtener parámetros del formulario
+// Helper: validar resolución y L_max
 // ─────────────────────────────────────────────────────────────────
-function getParams() {
-  return {
-    lat_min:    parseFloat(document.getElementById('lat-min').value),
-    lat_max:    parseFloat(document.getElementById('lat-max').value),
-    lon_min:    parseFloat(document.getElementById('lon-min').value),
-    lon_max:    parseFloat(document.getElementById('lon-max').value),
-    resolucion: parseFloat(document.getElementById('resolucion').value),
-    L_max:      parseInt(document.getElementById('L-max').value, 10),
-  };
-}
-
-function validarParams(params) {
-  if (params.lat_max <= params.lat_min) return 'Lat máx debe ser mayor que lat mín';
-  if (params.lon_max <= params.lon_min) return 'Lon máx debe ser mayor que lon mín';
-  if (params.resolucion < 0.05)         return 'Resolución mínima: 0.05°';
-  if (params.L_max < 2 || params.L_max > 360) return 'L_max debe estar entre 2 y 360';
+function validarParams(res, L_max) {
+  if (res < 0.05) return 'Resolución mínima: 0.05°';
+  if (L_max < 2 || L_max > 360) return 'L_max debe estar entre 2 y 360';
   return null;
 }
 
@@ -157,8 +161,10 @@ function fmt(val, decimals = 2, unit = 'm') {
 // ACCIÓN 1: Calcular EGMUD
 // ─────────────────────────────────────────────────────────────────
 async function calcularEGMUD() {
-  const params = getParams();
-  const err = validarParams(params);
+  const resolucion = parseFloat(document.getElementById('resolucion').value);
+  const L_max = parseInt(document.getElementById('L-max').value, 10);
+  
+  const err = validarParams(resolucion, L_max);
   if (err) { addLog(`Error: ${err}`, 'error'); return; }
 
   const btn = document.getElementById('btn-egmud');
@@ -173,15 +179,48 @@ async function calcularEGMUD() {
     document.getElementById(id).disabled = true;
   });
 
-  showProgress('Calculando ondulación geoidal EGM96…');
+  const fileGfc = document.getElementById('file-gfc').files[0];
+  if (!fileGfc) {
+    addLog('Por favor, seleccione su archivo .gfc', 'error');
+    btn.disabled = false;
+    btn.classList.remove('loading');
+    return;
+  }
+
+  showProgress('Leyendo archivo de correcciones para auto-ajustar región…');
+  
+  let bounds;
+  try {
+    bounds = await extractBoundsFromCorrections();
+  } catch (e) {
+    addLog(e, 'error');
+    btn.disabled = false;
+    btn.classList.remove('loading');
+    hideProgress();
+    return;
+  }
+  
+  const params = {
+    lat_min: bounds.lat_min,
+    lat_max: bounds.lat_max,
+    lon_min: bounds.lon_min,
+    lon_max: bounds.lon_max,
+    resolucion: resolucion,
+    L_max: L_max
+  };
+
+  showProgress('Calculando ondulación geoidal EGMUD…');
+  addLog(`Región auto-ajustada: lat[${params.lat_min}, ${params.lat_max}] lon[${params.lon_min}, ${params.lon_max}]`, 'info');
   addLog(`Iniciando EGMUD: L=${params.L_max}, resolución=${params.resolucion}°`, 'info');
-  addLog(`Región: lat[${params.lat_min}, ${params.lat_max}] lon[${params.lon_min}, ${params.lon_max}]`, 'info');
+
+  const formData = new FormData();
+  Object.keys(params).forEach(key => formData.append(key, params[key]));
+  formData.append('file_gfc', fileGfc);
 
   try {
     const resp = await fetch('/api/compute-egmud', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params),
+      body: formData,
     });
     const data = await resp.json();
     hideProgress();
@@ -206,6 +245,11 @@ async function calcularEGMUD() {
     State.egmudCalculado = true;
     document.getElementById('btn-compare').disabled = false;
     document.getElementById('btn-hybrid').disabled  = false;
+
+    // Store grid data for pixel tooltip
+    if (data.grid_data && data.grid_bounds) {
+      State.gridData['container-egmud'] = { bounds: data.grid_bounds, data: data.grid_data };
+    }
 
     addLog(`✓ EGMUD completado. Malla: ${data.n_lat}×${data.n_lon}. Media N = ${fmt(st.media_m)}`, 'ok');
 
@@ -256,6 +300,12 @@ async function calcularComparacion() {
     document.getElementById('stats-compare').style.display = 'flex';
 
     State.comparacionCalculada = true;
+
+    // Store grid data for pixel tooltip
+    if (data.grid_data && data.grid_bounds) {
+      State.gridData['container-compare'] = { bounds: data.grid_bounds, data: data.grid_data };
+    }
+
     addLog(`✓ Comparación completada. RMSE = ${fmt(m.rmse)}, Error medio = ${fmt(m.error_medio)}`, 'ok');
 
   } catch (e) {
@@ -283,11 +333,22 @@ async function calcularHibrido() {
   showProgress('Calculando correcciones topográficas y modelo híbrido…');
   addLog('Iniciando modelo híbrido: EGMUD + ΔN_FA + ΔN_H…', 'info');
 
+  const fileCorr = document.getElementById('file-corr').files[0];
+  if (!fileCorr) {
+    addLog('Por favor, seleccione el archivo de correcciones', 'error');
+    btn.disabled = false;
+    btn.classList.remove('loading');
+    hideProgress();
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append('file_corr', fileCorr);
+
   try {
     const resp = await fetch('/api/compute-hybrid', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({}),
+      body: formData,
     });
     const data = await resp.json();
     hideProgress();
@@ -313,6 +374,12 @@ async function calcularHibrido() {
     }
 
     State.hibridoCalculado = true;
+
+    // Store grid data for pixel tooltip
+    if (data.grid_data && data.grid_bounds) {
+      State.gridData['container-hybrid'] = { bounds: data.grid_bounds, data: data.grid_data };
+    }
+
     addLog(`✓ Modelo híbrido completado. Media N = ${fmt(st.media_m)}`, 'ok');
 
   } catch (e) {
@@ -356,6 +423,108 @@ async function descargarCoeficientes() {
 }
 
 // ─────────────────────────────────────────────────────────────────
+// Modal: expandir mapa al hacer clic en botón ⛶
+// ─────────────────────────────────────────────────────────────────
+function fullscreenMap(containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  const img = container.querySelector('img');
+  if (!img) return;
+  openModal(img.src.split('?')[0]);
+}
+function openModal(imgSrc) {
+  const modal = document.getElementById('image-modal');
+  document.getElementById('modal-img').src = imgSrc;
+  modal.classList.add('active');
+}
+function closeModal() {
+  document.getElementById('image-modal').classList.remove('active');
+}
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeModal();
+});
+
+// ─────────────────────────────────────────────────────────────────
+// Tooltip: mostrar valor en metros al hacer clic sobre un mapa
+// ─────────────────────────────────────────────────────────────────
+function setupMapPixelTooltip() {
+  const tooltip = document.getElementById('pixel-tooltip');
+
+  // Use event delegation on document for dynamically added images
+  document.addEventListener('click', (e) => {
+    const img = e.target;
+    if (!img || img.tagName !== 'IMG') return;
+    const container = img.closest('.map-container');
+    if (!container) return;
+
+    // Find which map this container belongs to
+    const containerId = container.id;
+    const gridInfo = State.gridData[containerId];
+
+    if (!gridInfo || !gridInfo.data) {
+      tooltip.innerHTML = 'Sin datos de grilla';
+      tooltip.style.display = 'block';
+      tooltip.style.left = (e.clientX + 14) + 'px';
+      tooltip.style.top = (e.clientY - 30) + 'px';
+      setTimeout(() => { tooltip.style.display = 'none'; }, 2000);
+      return;
+    }
+
+    // Map pixel position to grid indices
+    // matplotlib images have the plot area within a border (axes area)
+    // We approximate: the axes area is roughly 10-88% horizontally, 8-85% vertically
+    const rect = img.getBoundingClientRect();
+    const relX = (e.clientX - rect.left) / rect.width;
+    const relY = (e.clientY - rect.top) / rect.height;
+
+    // Approximate matplotlib axes bounds within image
+    const axLeft = 0.12, axRight = 0.82, axTop = 0.08, axBottom = 0.88;
+    
+    if (relX < axLeft || relX > axRight || relY < axTop || relY > axBottom) {
+      tooltip.style.display = 'none';
+      return; // Click outside plot area
+    }
+
+    // Normalize within axes area
+    const normX = (relX - axLeft) / (axRight - axLeft);
+    const normY = (relY - axTop) / (axBottom - axTop);
+
+    const b = gridInfo.bounds;
+    const n_lat = gridInfo.data.length;
+    const n_lon = gridInfo.data[0].length;
+
+    // Map to grid indices (Y is inverted in image: top=lat_max, bottom=lat_min)
+    const iRow = Math.round(normY * (n_lat - 1));  // top=0=lat_max
+    const iCol = Math.round(normX * (n_lon - 1));
+
+    if (iRow < 0 || iRow >= n_lat || iCol < 0 || iCol >= n_lon) {
+      tooltip.style.display = 'none';
+      return;
+    }
+
+    // In matplotlib with origin='lower', row 0 = lat_min (bottom)
+    // But in screen, top = row 0. So we need to flip.
+    const rowFlipped = n_lat - 1 - iRow;
+    const value = gridInfo.data[rowFlipped] ? gridInfo.data[rowFlipped][iCol] : null;
+
+    // Calculate lat/lon
+    const lat = b.lat_min + (rowFlipped / (n_lat - 1)) * (b.lat_max - b.lat_min);
+    const lon = b.lon_min + (iCol / (n_lon - 1)) * (b.lon_max - b.lon_min);
+
+    if (value !== null && !isNaN(value)) {
+      tooltip.innerHTML = `<b>${value.toFixed(3)} m</b><br>Lat: ${lat.toFixed(3)}°  Lon: ${lon.toFixed(3)}°`;
+    } else {
+      tooltip.innerHTML = 'Sin dato';
+    }
+
+    tooltip.style.display = 'block';
+    tooltip.style.left = (e.clientX + 14) + 'px';
+    tooltip.style.top = (e.clientY - 30) + 'px';
+    setTimeout(() => { tooltip.style.display = 'none'; }, 4000);
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────
 // Verificar estado del servidor al cargar
 // ─────────────────────────────────────────────────────────────────
 async function checkServerStatus() {
@@ -387,5 +556,6 @@ async function checkServerStatus() {
 document.addEventListener('DOMContentLoaded', () => {
   updateGridPreview();
   checkServerStatus();
-  addLog('Interfaz lista. Configure la región de estudio y calcule.', 'info');
+  setupMapPixelTooltip();
+  addLog('Interfaz lista. Cargue sus archivos y calcule.', 'info');
 });
