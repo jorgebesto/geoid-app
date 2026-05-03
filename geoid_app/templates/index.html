@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Modelo Geoidal EGM96 — Geodesia Física</title>
+  <link rel="stylesheet" href="/static/css/styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;700;800&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════════════ HEADER ══ -->
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="header-brand">
+        <div class="brand-icon">
+          <svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+            <ellipse cx="24" cy="24" rx="22" ry="15" fill="none" stroke="currentColor" stroke-width="1.5"/>
+            <ellipse cx="24" cy="24" rx="22" ry="15" fill="none" stroke="currentColor" stroke-width="0.5" transform="rotate(60 24 24)" opacity="0.5"/>
+            <ellipse cx="24" cy="24" rx="22" ry="15" fill="none" stroke="currentColor" stroke-width="0.5" transform="rotate(120 24 24)" opacity="0.5"/>
+            <circle cx="24" cy="24" r="2" fill="currentColor"/>
+            <line x1="2" y1="24" x2="46" y2="24" stroke="currentColor" stroke-width="0.8" opacity="0.6"/>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <h1>GeoModel EGM96</h1>
+          <span class="brand-sub">Geodesia Física · UDFJ de Caldas</span>
+        </div>
+      </div>
+      <div class="header-status">
+        <span id="status-dot" class="status-dot"></span>
+        <span id="status-text" class="status-text">Conectando…</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ══════════════════════════════════════════════ MAIN LAYOUT ══ -->
+  <main class="app-layout">
+
+    <!-- ─────────────────────────────── SIDEBAR / CONTROLES ──── -->
+    <aside class="sidebar">
+
+      <section class="panel" id="panel-region">
+        <h2 class="panel-title">
+          <span class="panel-icon">⊕</span> Región de Estudio
+        </h2>
+
+        <div class="field-group">
+          <label>Latitud mínima (°)</label>
+          <input type="number" id="lat-min" value="-5" step="0.5" min="-90" max="90" />
+        </div>
+        <div class="field-group">
+          <label>Latitud máxima (°)</label>
+          <input type="number" id="lat-max" value="15" step="0.5" min="-90" max="90" />
+        </div>
+        <div class="field-group">
+          <label>Longitud mínima (°)</label>
+          <input type="number" id="lon-min" value="-80" step="0.5" min="-180" max="180" />
+        </div>
+        <div class="field-group">
+          <label>Longitud máxima (°)</label>
+          <input type="number" id="lon-max" value="-65" step="0.5" min="-180" max="180" />
+        </div>
+
+        <div class="preset-row">
+          <span class="preset-label">Presets:</span>
+          <button class="btn-preset" onclick="setPreset('colombia')">Colombia</button>
+          <button class="btn-preset" onclick="setPreset('cundinamarca')">Cundinamarca</button>
+          <button class="btn-preset" onclick="setPreset('antioquia')">Antioquia</button>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-params">
+        <h2 class="panel-title">
+          <span class="panel-icon">⚙</span> Parámetros del Modelo
+        </h2>
+
+        <div class="field-group">
+          <label>Resolución Δφ = Δλ (°)</label>
+          <input type="number" id="resolucion" value="0.5" step="0.05" min="0.05" max="5.0" />
+          <span class="field-hint">Menor = más preciso, más lento</span>
+        </div>
+
+        <div class="field-group">
+          <label>Grado máximo L</label>
+          <div class="range-wrapper">
+            <input type="range" id="L-max-range" min="10" max="360" value="170" step="10"
+                   oninput="document.getElementById('L-max-val').textContent = this.value;
+                            document.getElementById('L-max').value = this.value" />
+            <span id="L-max-val" class="range-display">170</span>
+          </div>
+          <input type="hidden" id="L-max" value="170" />
+          <span class="field-hint">EGM96 tiene L hasta 360</span>
+        </div>
+
+        <div class="grid-preview" id="grid-preview">
+          <span id="preview-text">Malla: — × — puntos</span>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-actions">
+        <h2 class="panel-title">
+          <span class="panel-icon">▶</span> Cálculos
+        </h2>
+
+        <button class="btn-action btn-primary" id="btn-egmud" onclick="calcularEGMUD()">
+          <span class="btn-icon">①</span>
+          <span class="btn-text">
+            <strong>Calcular EGMUD</strong>
+            <small>Modelo EGM96 truncado L=170</small>
+          </span>
+        </button>
+
+        <button class="btn-action btn-secondary" id="btn-compare" onclick="calcularComparacion()" disabled>
+          <span class="btn-icon">②</span>
+          <span class="btn-text">
+            <strong>Generar Comparación</strong>
+            <small>Error vs referencia ICGEM</small>
+          </span>
+        </button>
+
+        <button class="btn-action btn-accent" id="btn-hybrid" onclick="calcularHibrido()" disabled>
+          <span class="btn-icon">③</span>
+          <span class="btn-text">
+            <strong>Modelo Híbrido</strong>
+            <small>EGMUD + ΔN_FA + ΔN_H</small>
+          </span>
+        </button>
+
+        <button class="btn-action btn-neutral" id="btn-download" onclick="descargarCoeficientes()">
+          <span class="btn-icon">↓</span>
+          <span class="btn-text">
+            <strong>Verificar EGM96.gfc</strong>
+            <small>Descargar coeficientes si falta</small>
+          </span>
+        </button>
+      </section>
+
+      <!-- ── Nota matemática ── -->
+      <section class="panel panel-formula">
+        <h2 class="panel-title"><span class="panel-icon">∑</span> Fórmula de Síntesis</h2>
+        <div class="formula-block">
+          <p class="formula-main">N(φ,λ) = (a/γ) · Σ<sub>n=2</sub><sup>L</sup> Σ<sub>m=0</sub><sup>n</sup> (a/r)<sup>n</sup> · P̄<sub>nm</sub>(sin φ<sub>gc</sub>) · (C<sub>nm</sub>cos mλ + S<sub>nm</sub>sin mλ)</p>
+        </div>
+        <div class="formula-block">
+          <p class="formula-hybrid">N<sub>híb</sub> = N<sub>EGMUD</sub> + ΔN<sub>FA</sub> + ΔN<sub>H</sub></p>
+          <p class="formula-sub">ΔN<sub>FA</sub> ≈ −(R/γ) · 0.3086×10⁻⁵ · H</p>
+          <p class="formula-sub">ΔN<sub>H</sub> ≈ −πGρH²/γ</p>
+        </div>
+      </section>
+
+    </aside>
+
+    <!-- ─────────────────────────────── MAIN PANEL ──── -->
+    <div class="results-panel">
+
+      <!-- Progress bar -->
+      <div id="progress-bar" class="progress-bar hidden">
+        <div class="progress-fill" id="progress-fill"></div>
+        <span id="progress-label" class="progress-label">Procesando…</span>
+      </div>
+
+      <!-- ── EGMUD MAP ── -->
+      <div class="map-card" id="card-egmud">
+        <div class="map-header">
+          <h3>① Modelo EGM96 Truncado (EGMUD)</h3>
+          <div class="map-badges">
+            <span class="badge badge-blue">L = <span id="badge-L">170</span></span>
+            <span class="badge badge-green" id="badge-egmud-pts">—</span>
+          </div>
+        </div>
+        <div class="map-container" id="container-egmud">
+          <div class="map-placeholder">
+            <div class="placeholder-icon">⊕</div>
+            <p>Configure la región y haga clic en <strong>Calcular EGMUD</strong></p>
+          </div>
+        </div>
+        <div class="stats-bar" id="stats-egmud" style="display:none">
+          <div class="stat-item"><span class="stat-label">Mín</span><span class="stat-value" id="egmud-min">—</span></div>
+          <div class="stat-item"><span class="stat-label">Máx</span><span class="stat-value" id="egmud-max">—</span></div>
+          <div class="stat-item"><span class="stat-label">Media</span><span class="stat-value" id="egmud-mean">—</span></div>
+          <div class="stat-item"><span class="stat-label">σ</span><span class="stat-value" id="egmud-std">—</span></div>
+        </div>
+      </div>
+
+      <!-- ── COMPARISON MAP ── -->
+      <div class="map-card" id="card-compare">
+        <div class="map-header">
+          <h3>② Comparación: EGM96_ref − EGMUD</h3>
+          <div class="map-badges">
+            <span class="badge badge-orange">Error residual</span>
+          </div>
+        </div>
+        <div class="map-container" id="container-compare">
+          <div class="map-placeholder">
+            <div class="placeholder-icon">△</div>
+            <p>Ejecutar primero el cálculo EGMUD</p>
+          </div>
+        </div>
+        <div class="stats-bar" id="stats-compare" style="display:none">
+          <div class="stat-item"><span class="stat-label">Error medio</span><span class="stat-value" id="cmp-mean">—</span></div>
+          <div class="stat-item"><span class="stat-label">RMSE</span><span class="stat-value" id="cmp-rmse">—</span></div>
+          <div class="stat-item"><span class="stat-label">Máx</span><span class="stat-value" id="cmp-max">—</span></div>
+          <div class="stat-item"><span class="stat-label">Mín</span><span class="stat-value" id="cmp-min">—</span></div>
+          <div class="stat-item"><span class="stat-label">N puntos</span><span class="stat-value" id="cmp-n">—</span></div>
+        </div>
+      </div>
+
+      <!-- ── HYBRID MAP ── -->
+      <div class="map-card" id="card-hybrid">
+        <div class="map-header">
+          <h3>③ Modelo Geoidal Híbrido</h3>
+          <div class="map-badges">
+            <span class="badge badge-purple">EGMUD + ΔN_FA + ΔN_H</span>
+          </div>
+        </div>
+        <div class="map-container" id="container-hybrid">
+          <div class="map-placeholder">
+            <div class="placeholder-icon">◈</div>
+            <p>Ejecutar primero el cálculo EGMUD</p>
+          </div>
+        </div>
+        <div class="stats-bar" id="stats-hybrid" style="display:none">
+          <div class="stat-item"><span class="stat-label">Mín</span><span class="stat-value" id="hyb-min">—</span></div>
+          <div class="stat-item"><span class="stat-label">Máx</span><span class="stat-value" id="hyb-max">—</span></div>
+          <div class="stat-item"><span class="stat-label">Media</span><span class="stat-value" id="hyb-mean">—</span></div>
+          <div class="stat-item"><span class="stat-label">RMSE vs ref</span><span class="stat-value" id="hyb-rmse">—</span></div>
+        </div>
+
+        <!-- DEM sub-panel -->
+        <div id="dem-panel" style="display:none; margin-top: 1rem;">
+          <h4 class="dem-title">DEM Sintético usado en correcciones</h4>
+          <div class="map-container" id="container-dem">
+            <div class="map-placeholder"><p>…</p></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── LOG PANEL ── -->
+      <div class="log-panel" id="log-panel">
+        <div class="log-header">
+          <span>📋 Log de operaciones</span>
+          <button class="btn-clear-log" onclick="clearLog()">Limpiar</button>
+        </div>
+        <div class="log-body" id="log-body">
+          <p class="log-entry log-info">Sistema inicializado. Configure los parámetros y calcule.</p>
+        </div>
+      </div>
+
+    </div><!-- /results-panel -->
+  </main>
+
+  <!-- ════════════════════════════════════════════ FOOTER ══ -->
+  <footer class="site-footer">
+    <p>Modelo Geoidal EGM96 · Geodesia Física · Universidad Distrital Francisco José de Caldas · Prof. Andrés Cárdenas Contreras</p>
+    <p class="footer-note">Los coeficientes EGM96 son propiedad de NGA/NASA. Los resultados son de carácter académico.</p>
+  </footer>
+
+  <script src="/static/js/script.js"></script>
+</body>
+</html>

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Geoide App</title>
+<style>
+body { font-family: Arial; text-align:center; }
+img { width:300px; margin:10px; }
+</style>
+</head>
+<body>
+<h1>Modelo Geoide EGMUD</h1>
+
+<button onclick="run()">Generar Mapas</button>
+
+<h3>Resultados</h3>
+<p id="metrics"></p>
+
+<img id="egm">
+<img id="error">
+<img id="hybrid">
+
+<script>
+function run(){
+fetch('/compute',{
+method:'POST',
+headers:{'Content-Type':'application/json'},
+body:JSON.stringify({lat_min:-5,lat_max:5,lon_min:-75,lon_max:-70,res:60})
+})
+.then(res=>res.json())
+.then(data=>{
+document.getElementById('metrics').innerHTML =
+"RMSE: " + data.rmse.toFixed(3) + " | Error medio: " + data.mean_error.toFixed(3);
+
+setTimeout(()=>{
+document.getElementById('egm').src='static/egm.png?'+new Date().getTime();
+document.getElementById('error').src='static/error.png?'+new Date().getTime();
+document.getElementById('hybrid').src='static/hybrid.png?'+new Date().getTime();
+},500);
+});
+}
+</script>
+
+</body>
+</html>
+
+os.makedirs('templates', exist_ok=True)
+os.makedirs('static', exist_ok=True)
+
+with open('templates/index.html', 'w') as f:
+    f.write(html_code)
+
+if __name__ == '__main__':
+    app.run(debug=True)
