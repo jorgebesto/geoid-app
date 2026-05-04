@@ -17,6 +17,39 @@ const State = {
 };
 
 // ─────────────────────────────────────────────────────────────────
+// Pantalla de Introducción / Carga
+// ─────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  const fill = document.getElementById('intro-progress-fill');
+  const btn = document.getElementById('btn-enter');
+  const status = document.getElementById('intro-status');
+  
+  if (fill && btn && status) {
+    setTimeout(() => { fill.style.width = '30%'; status.textContent = "Verificando coeficientes EGM96..."; }, 500);
+    setTimeout(() => { fill.style.width = '60%'; status.textContent = "Preparando modelos de terreno..."; }, 1200);
+    setTimeout(() => { fill.style.width = '100%'; status.textContent = "Sistema listo."; }, 2000);
+    
+    setTimeout(() => {
+      document.getElementById('intro-loader').style.display = 'none';
+      btn.classList.remove('hidden');
+      setTimeout(() => btn.classList.add('visible'), 50);
+    }, 2500);
+  } else {
+    // Si no está el intro, mostrar directo
+    const appWrapper = document.getElementById('app-wrapper');
+    if (appWrapper) appWrapper.style.opacity = '1';
+  }
+});
+
+function startApp() {
+  document.getElementById('intro-screen').classList.add('fade-out');
+  document.getElementById('app-wrapper').style.opacity = '1';
+  setTimeout(() => {
+    document.getElementById('intro-screen').style.display = 'none';
+  }, 1000);
+}
+
+// ─────────────────────────────────────────────────────────────────
 // Extraer bounds automáticamente del archivo de correcciones
 // ─────────────────────────────────────────────────────────────────
 async function extractBoundsFromCorrections() {
