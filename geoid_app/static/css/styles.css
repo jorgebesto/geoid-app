@@ -900,6 +900,27 @@ input[type="range"] {
   }
 }
 
+/* ── Custom Scrollbar for KaTeX ──────────────────────────── */
+.katex-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  padding-bottom: 8px !important;
+  font-size: 0.85rem;
+}
+.katex-scroll::-webkit-scrollbar {
+  display: block;
+  height: 6px;
+}
+.katex-scroll::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+}
+.katex-scroll::-webkit-scrollbar-thumb {
+  background: var(--cyan-dk);
+  border-radius: 4px;
+}
+
 /* ── Intro Screen ────────────────────────────────────────── */
 .intro-screen {
   position: fixed;

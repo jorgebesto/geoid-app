@@ -606,6 +606,73 @@ def status():
     })
 
 
+@app.route('/api/compute-legendre', methods=['POST'])
+def compute_legendre():
+    """
+    Calcula un polinomio de Legendre P_nm para una latitud dada.
+    """
+    try:
+        data = request.json
+        lat_gd = float(data.get('lat', 4.6097))
+        n = int(data.get('n', 2))
+        m = int(data.get('m', 0))
+
+        if m > n:
+            return jsonify({"error": "El orden m no puede ser mayor al grado n."}), 400
+        if n < 0 or m < 0:
+            return jsonify({"error": "Grado y orden deben ser positivos."}), 400
+
+        # Transformación a latitud geocéntrica
+        lat_gc = geodesica_a_geocentrica(np.array([lat_gd]))[0]
+        x_leg = np.sin(np.radians(lat_gc))
+
+        # Calcular todos los polinomios hasta n
+        P = calcular_legendre(x_leg, n)
+        valor_pnm = P[n, m]
+
+        # Generar fórmula abstracta en LaTeX
+        k = 1 if m == 0 else 2
+        import math
+        try:
+            if n <= 20: # Evitar desbordamiento de factoriales
+                norm_factor = math.sqrt(k * (2*n + 1) * math.factorial(n-m) / math.factorial(n+m))
+                rod_factor = 1.0 / ((2**n) * math.factorial(n))
+                C = norm_factor * rod_factor
+                # Format C in scientific notation for LaTeX
+                c_sci = f"{C:.4e}".split('e')
+                base = c_sci[0]
+                exp = int(c_sci[1])
+                if exp != 0:
+                    C_str = f"{base} \\times 10^{{{exp}}}"
+                else:
+                    C_str = f"{base}"
+            else:
+                C_str = f"N_{{{n},{m}}} \\cdot \\frac{{1}}{{2^{{{n}}} {n}!}}"
+        except OverflowError:
+            C_str = f"N_{{{n},{m}}} \\cdot \\frac{{1}}{{2^{{{n}}} {n}!}}"
+
+        deriv_str = f"\\frac{{d^{{{n+m}}}}}{{dx^{{{n+m}}}}}" if (n+m) > 0 else ""
+        m_str = f"(1-x^2)^{{{m}/2}}" if m > 0 else ""
+        
+        formula_latex = f"\\bar{{P}}_{{{n},{m}}}(x) = {C_str}"
+        if m_str: formula_latex += f" \\cdot {m_str}"
+        if deriv_str: formula_latex += f" \\cdot {deriv_str} (x^2 - 1)^{{{n}}}"
+
+        return jsonify({
+            "success": True,
+            "lat_gd": lat_gd,
+            "lat_gc": float(lat_gc),
+            "x_leg": float(x_leg),
+            "n": n,
+            "m": m,
+            "valor": float(valor_pnm),
+            "formula": formula_latex
+        })
+    except Exception as e:
+        logger.error(traceback.format_exc())
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route('/api/compute-egmud', methods=['POST'])
 def compute_egmud():
     """

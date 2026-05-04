@@ -558,6 +558,61 @@ function setupMapPixelTooltip() {
 }
 
 // ─────────────────────────────────────────────────────────────────
+// Calcular Polinomio de Legendre Directo
+// ─────────────────────────────────────────────────────────────────
+async function calcularLegendreDirecto() {
+  const lat = document.getElementById('leg-lat').value;
+  const n = document.getElementById('leg-n').value;
+  const m = document.getElementById('leg-m').value;
+  const resDiv = document.getElementById('leg-result');
+  
+  if (lat === '' || n === '' || m === '') {
+    resDiv.style.display = 'block';
+    resDiv.innerHTML = '<span style="color:var(--red);">Complete todos los campos.</span>';
+    return;
+  }
+  
+  resDiv.style.display = 'block';
+  resDiv.innerHTML = 'Calculando...';
+  
+  try {
+    const response = await fetch('/api/compute-legendre', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        lat: parseFloat(lat),
+        n: parseInt(n),
+        m: parseInt(m)
+      })
+    });
+    
+    const data = await response.json();
+    if (data.success) {
+      resDiv.innerHTML = `
+        <div style="color:#fff; margin-bottom:5px;">P̄<sub>${data.n},${data.m}</sub> (lat=${data.lat_gd}°)</div>
+        <strong style="font-size:1.1rem; letter-spacing:1px; color: var(--green);">${data.valor.toExponential(6)}</strong>
+        <div style="margin-top:10px; padding-top:10px; border-top: 1px solid rgba(255,255,255,0.1); font-size: 0.85rem; color: var(--text-secondary); font-family: sans-serif;">
+          <strong style="display:block; margin-bottom: 8px;">Fórmula Analítica:</strong>
+          <div id="katex-formula" class="katex-scroll" style="color: var(--cyan); text-align: center;"></div>
+        </div>
+      `;
+      if (typeof katex !== 'undefined') {
+        katex.render(data.formula, document.getElementById('katex-formula'), {
+          displayMode: true,
+          throwOnError: false
+        });
+      } else {
+        document.getElementById('katex-formula').innerText = data.formula;
+      }
+    } else {
+      resDiv.innerHTML = `<span style="color:var(--red);">${data.error}</span>`;
+    }
+  } catch (error) {
+    resDiv.innerHTML = `<span style="color:var(--red);">Error de conexión.</span>`;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────
 // Verificar estado del servidor al cargar
 // ─────────────────────────────────────────────────────────────────
 async function checkServerStatus() {

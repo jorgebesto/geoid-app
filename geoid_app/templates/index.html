@@ -7,6 +7,9 @@
   <link rel="stylesheet" href="/static/css/styles.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;700;800&display=swap" rel="stylesheet" />
+  <!-- KaTeX for Math Rendering -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
 </head>
 <body>
   <!-- ════════════════════════════════════════════════ INTRO SCREEN ══ -->
@@ -155,6 +158,32 @@
             <small>Descargar coeficientes si falta</small>
           </span>
         </button>
+      </section>
+
+      <!-- ── Calculadora Legendre ── -->
+      <section class="panel" id="panel-legendre">
+        <h2 class="panel-title">
+          <span class="panel-icon">ƒ</span> Polinomios de Legendre
+        </h2>
+        <div class="field-group">
+          <label>Latitud Geodésica (°)</label>
+          <input type="number" id="leg-lat" value="4.6097" step="any" />
+        </div>
+        <div class="field-group" style="display:flex; gap:10px; flex-direction:row;">
+          <div style="flex:1">
+            <label>Grado (n)</label>
+            <input type="number" id="leg-n" value="2" min="0" max="360" />
+          </div>
+          <div style="flex:1">
+            <label>Orden (m)</label>
+            <input type="number" id="leg-m" value="0" min="0" max="360" />
+          </div>
+        </div>
+        <button class="btn-action btn-neutral" style="margin-top:0.5rem; padding:0.5rem;" onclick="calcularLegendreDirecto()">
+          <span class="btn-text" style="align-items:center; width:100%"><strong>Calcular P̄<sub>n,m</sub></strong></span>
+        </button>
+        <div id="leg-result" style="margin-top:0.5rem; font-family:var(--font-mono); font-size:0.85rem; color:var(--cyan); background:rgba(0,0,0,0.5); padding:10px; border-radius:6px; display:none; word-break: break-all; text-align: center; border: 1px solid var(--border-lite);">
+        </div>
       </section>
 
       <!-- ── Nota matemática ── -->
