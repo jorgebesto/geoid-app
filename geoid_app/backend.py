@@ -515,12 +515,12 @@ def generar_mapa(data: np.ndarray, lats: np.ndarray, lons: np.ndarray,
     # ── Datos ───────────────────────────────────────────────────────────────
     vmin, vmax = np.nanmin(data), np.nanmax(data)
 
+    num_levels = 60
     if divergente and vmin < 0 < vmax:
         norm = TwoSlopeNorm(vmin=vmin, vcenter=0, vmax=vmax)
-        im = ax.pcolormesh(LON_G, LAT_G, data, cmap=colormap, norm=norm, shading='auto')
+        im = ax.contourf(LON_G, LAT_G, data, levels=num_levels, cmap=colormap, norm=norm)
     else:
-        im = ax.pcolormesh(LON_G, LAT_G, data, cmap=colormap,
-                           vmin=vmin, vmax=vmax, shading='auto')
+        im = ax.contourf(LON_G, LAT_G, data, levels=num_levels, cmap=colormap)
 
     # SIN set_aspect() — el figsize ya garantiza la proporción correcta
 
@@ -536,9 +536,8 @@ def generar_mapa(data: np.ndarray, lats: np.ndarray, lons: np.ndarray,
 
     # ── Contornos ────────────────────────────────────────────────────────────
     try:
-        contour = ax.contour(LON_G, LAT_G, data,
-                             levels=6, colors='white', linewidths=0.4, alpha=0.5)
-        ax.clabel(contour, inline=True, fontsize=6, fmt='%.1f', colors='white')
+        ax.contour(LON_G, LAT_G, data,
+                   levels=15, colors='black', linewidths=0.4, alpha=0.8)
     except Exception:
         pass
 
@@ -684,7 +683,7 @@ def compute_egmud():
         lat_max = float(data.get('lat_max', 15.0))
         lon_min = float(data.get('lon_min', -80.0))
         lon_max = float(data.get('lon_max', -65.0))
-        resolucion = float(data.get('resolucion', 0.5))
+        resolucion = float(data.get('resolucion', 0.01))
         L_max = int(data.get('L_max', 170))
         
         file_gfc = request.files.get('file_gfc')
@@ -696,8 +695,8 @@ def compute_egmud():
         
         if lat_max <= lat_min or lon_max <= lon_min:
             return jsonify({"error": "Límites geográficos inválidos"}), 400
-        if resolucion < 0.05 or resolucion > 5.0:
-            return jsonify({"error": "Resolución debe estar entre 0.05° y 5.0°"}), 400
+        if resolucion < 0.00001 or resolucion > 5.0:
+            return jsonify({"error": "Resolución debe estar entre 0.00001° y 5.0°"}), 400
         if L_max < 2 or L_max > 360:
             return jsonify({"error": "L_max debe estar entre 2 y 360"}), 400
 
@@ -819,6 +818,12 @@ def compute_hybrid():
         N_ref = np.load(DATA_DIR / "N_ref_last.npy")
         lats = np.load(DATA_DIR / "lats_last.npy")
         lons = np.load(DATA_DIR / "lons_last.npy")
+
+        # Validación de consistencia para evitar errores de Scipy
+        if N_egmud.shape != N_ref.shape or len(lats) != N_egmud.shape[0]:
+            return jsonify({
+                "error": "Inconsistencia de datos detectada. Por favor, vuelva a realizar el paso ② (Comparación) antes de este paso."
+            }), 400
         
         file_corr = request.files.get('file_corr')
         if not file_corr:
